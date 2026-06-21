@@ -29,7 +29,7 @@ Trả lời người dùng bằng **tiếng Việt**. Code/comment/commit bằng
 
 ## Phân biệt quan trọng
 - **Market Structure / GEX** (`get_gex`...) = HTTP công khai, KHÔNG cần browser.
-- **Indicator trên price chart** (`chart_*`) = đọc chart SỐNG qua CDP → **cần Chrome mở `--remote-debugging-port=9222`** và đang ở `app.turtletrading.vn/chart`. Nếu không, `chart_*` báo lỗi rõ + hint, mọi tool HTTP khác vẫn chạy bình thường.
+- **Indicator trên price chart** (`chart_*`) = đọc chart SỐNG qua CDP → **cần Chrome mở `--remote-debugging-port=9333`** và đang ở `app.turtletrading.vn/chart`. Nếu không, `chart_*` báo lỗi rõ + hint, mọi tool HTTP khác vẫn chạy bình thường.
 
 ## Quy tắc
 - Read-only, không đặt lệnh, không redistribute data (dùng cá nhân).

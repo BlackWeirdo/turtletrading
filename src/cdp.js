@@ -7,7 +7,10 @@
 // primitives from window.__chart2.
 
 const HOST = 'localhost';
-const DEFAULT_PORT = 9222;
+// Dedicated port for Turtle's debug Chrome. Intentionally NOT 9222 — that port
+// is used by the separate TradingView MCP / TradingView Desktop, so using a
+// distinct port lets both coexist without conflict.
+const DEFAULT_PORT = 9333;
 const CHART_ORIGIN = 'https://chart.turtletrading.vn';
 const CONNECT_TIMEOUT = 5000;
 const EVAL_TIMEOUT = 5000;

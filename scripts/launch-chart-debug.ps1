@@ -7,7 +7,7 @@
 # Add your indicators on the opened chart; chart_* tools then read that state.
 
 param(
-  [int]$Port = 9222,
+  [int]$Port = 9333,
   [string]$Url = "https://app.turtletrading.vn/chart",
   [string]$UserDataDir = "$env:LOCALAPPDATA\turtle-chart-debug"
 )

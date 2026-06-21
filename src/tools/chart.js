@@ -5,7 +5,7 @@ import { isReady } from '../cdp.js';
 
 const RO = { readOnlyHint: true, openWorldHint: true };
 const HINT =
-  'Open Chrome with --remote-debugging-port=9222 (use scripts/launch-chart-debug.ps1) and load app.turtletrading.vn/chart.';
+  'Open Chrome with --remote-debugging-port=9333 (use scripts/launch-chart-debug.ps1) and load app.turtletrading.vn/chart.';
 
 // All chart_* tools share the same CDP-down handling: report a clear error +
 // hint instead of crashing, so the HTTP tools keep working.

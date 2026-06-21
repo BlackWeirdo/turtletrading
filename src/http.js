@@ -18,9 +18,12 @@ export async function fetchJSON(url, ttlMs = 0) {
   let res;
   try {
     res = await fetch(url);
-    // Rate limited: back off once (honor Retry-After if present) and retry.
-    if (res.status === 429) {
-      const wait = Number(res.headers.get('retry-after')) * 1000 || 1000;
+    // Rate limited: back off and retry a couple times (honor Retry-After if
+    // present, else exponential-ish 1s/2s). These are unofficial endpoints
+    // that throttle under bursts.
+    for (let attempt = 0; res.status === 429 && attempt < 2; attempt++) {
+      const retryAfter = Number(res.headers.get('retry-after')) * 1000;
+      const wait = retryAfter || 1000 * (attempt + 1);
       await new Promise((r) => setTimeout(r, Math.min(wait, 5000)));
       res = await fetch(url);
     }

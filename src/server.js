@@ -18,7 +18,7 @@ Use:
 - FX & Gold (XAUUSD): get_fx_bars / get_fx_mtf / get_fx_catalog
 - Options & dealer flow (BTC/ETH/SOL): get_gex / get_positioning / get_cot / get_liquidations / get_big_tape
 - Watchlist (local file): watchlist_get / watchlist_add / watchlist_remove / watchlist_signals
-- Live price chart (CDP, needs Chrome --remote-debugging-port=9222 + chart open): chart_status / chart_get_view / chart_get_indicators / chart_get_market_structure / chart_get_ohlcv
+- Live price chart (CDP, needs Chrome --remote-debugging-port=9333 + chart open): chart_status / chart_get_view / chart_get_indicators / chart_get_market_structure / chart_get_ohlcv
 
 chart_* tools require a debug browser; if unavailable they return a clear error while every other tool keeps working.`;
 

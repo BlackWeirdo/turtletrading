@@ -45,7 +45,7 @@ Back up your existing config before merging. Restart the client afterwards.
    ```powershell
    powershell -ExecutionPolicy Bypass -File scripts\launch-chart-debug.ps1
    ```
-   (Uses a separate profile `%LOCALAPPDATA%\turtle-chart-debug`, port 9222.)
+   (Uses a separate profile `%LOCALAPPDATA%\turtle-chart-debug`, port 9333.)
 2. On the opened `app.turtletrading.vn/chart` page, add your indicators.
 3. Ask Claude e.g. *"Indicator tôi đang để trên chart là gì?"* → `chart_get_view`.
 
