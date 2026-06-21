@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "turtle-trading": {
+      "command": "node",
+      "args": ["c:\\Project Turtle\\turtle-trading-mcp\\src\\server.js"]
+    }
+  }
+}

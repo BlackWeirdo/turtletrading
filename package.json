@@ -1,0 +1,18 @@
+{
+  "name": "turtle-trading-mcp",
+  "version": "1.0.0",
+  "description": "MCP server (local, read-only) exposing public turtletrading.vn data: VN stock signals, crypto, FX/Gold, GEX/market-structure, plus live chart reading via CDP.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.23.8"
+  }
+}
