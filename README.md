@@ -22,7 +22,8 @@ node src/server.js   # smoke: prints "turtle-trading-mcp started" to stderr
 **VN stocks** (HTTP): `get_stock_signals`, `get_stock_live`, `get_stock_fundamentals`
 **Crypto** (HTTP): `get_crypto_overview`, `get_crypto_signal`, `get_klines`
 **FX / Gold** (HTTP): `get_fx_bars`, `get_fx_mtf`, `get_fx_catalog`
-**Options & dealer flow — BTC/ETH/SOL** (HTTP): `get_gex`, `get_positioning`, `get_cot`, `get_liquidations`, `get_big_tape`
+**Options & dealer flow — BTC/ETH/SOL + Gold (GLD)** (HTTP): `get_gex`, `get_positioning`, `get_cot` (pass `sym:'gold'`/`'xau'`/`'xauusd'` → maps to GLD options / COMEX COT)
+**Liquidations & big tape — crypto only** (HTTP): `get_liquidations`, `get_big_tape`
 **Watchlist** (local file): `watchlist_get`, `watchlist_add`, `watchlist_remove`, `watchlist_signals`
 **Live chart** (CDP): `chart_status`, `chart_get_view`, `chart_get_indicators`, `chart_get_market_structure`, `chart_get_ohlcv`
 Plus `health`.
@@ -69,6 +70,7 @@ Without this, `chart_*` return `{ connected:false, hint:... }` and everything el
 - "BTC đang mở vị thế Turtle?" → `get_crypto_signal('BTC')`.
 - "Nến Vàng 1h" → `get_fx_bars('XAUUSD','1h')`.
 - "GEX / gamma flip / max pain BTC?" → `get_gex('btc')`.
+- "GEX / Call wall / max pain Vàng?" → `get_gex('gold')`.
 - "Funding & L/S BTC?" → `get_positioning('btc')`.
 - "Big tape BTC?" → `get_big_tape('btc')`.
 - "Indicator tôi đang để trên chart?" → `chart_get_view` (cần debug browser + /chart).

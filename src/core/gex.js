@@ -1,5 +1,7 @@
 // Core logic for Market Structure / GEX tools (options & dealer flow).
-// All HTTP (Approach B) — NO CDP. Symbols btc/eth/sol (lowercase in URL).
+// All HTTP (Approach B) — NO CDP.
+// Symbols: btc/eth/sol (crypto) + gld (Gold ETF options, used for XAUUSD).
+// GEX / positioning / COT exist for gld; liquidations / big-tape are crypto-only.
 import { fetchJSON } from '../http.js';
 import { lowerSymbol } from '../symbols.js';
 
@@ -11,8 +13,17 @@ const TTL_COT = 6 * 60 * 60 * 1000; // 6 h (weekly data)
 const TTL_LIQ = 60 * 1000; // 60 s
 const TTL_TAPE = 30 * 1000; // 30 s
 
-export async function getGex({ sym = 'btc', sections } = {}) {
+// Gold maps to the GLD options series. Accept the common ways a caller refers
+// to gold so "gold"/"xauusd"/"xau" all resolve to the provider's `gld` feed.
+// Kept in sync with SYM_OPT in tools/gex.js so every accepted symbol resolves.
+const GOLD_ALIASES = new Set(['gld', 'gold', 'xau', 'xauusd']);
+function resolveSym(sym) {
   const s = lowerSymbol(sym);
+  return GOLD_ALIASES.has(s) ? 'gld' : s;
+}
+
+export async function getGex({ sym = 'btc', sections } = {}) {
+  const s = resolveSym(sym);
   const json = await fetchJSON(`${BASE}/gex/${s}/today.json`, TTL_GEX);
   const out = {
     sym: json.sym ?? s,
@@ -54,10 +65,10 @@ export async function getGex({ sym = 'btc', sections } = {}) {
 }
 
 export async function getPositioning({ sym = 'btc' } = {}) {
-  const s = lowerSymbol(sym);
+  const s = resolveSym(sym);
   const json = await fetchJSON(`${BASE}/cga/${s}/pos.json`, TTL_POS);
   return {
-    sym: s,
+    sym: json.sym ?? s,
     generated_at: json.generated_at,
     oi_usd: json.oi_usd,
     oi_chg_24h: json.oi_chg_24h,
@@ -70,7 +81,7 @@ export async function getPositioning({ sym = 'btc' } = {}) {
 }
 
 export async function getCot({ sym = 'btc', with_history = false } = {}) {
-  const s = lowerSymbol(sym);
+  const s = resolveSym(sym);
   const json = await fetchJSON(`${BASE}/cot/${s}.json`, TTL_COT);
   const out = {
     sym: json.sym ?? s,

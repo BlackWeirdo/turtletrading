@@ -16,7 +16,8 @@ Use:
 - VN stocks: get_stock_signals / get_stock_live / get_stock_fundamentals
 - Crypto: get_crypto_overview / get_crypto_signal / get_klines
 - FX & Gold (XAUUSD): get_fx_bars / get_fx_mtf / get_fx_catalog
-- Options & dealer flow (BTC/ETH/SOL): get_gex / get_positioning / get_cot / get_liquidations / get_big_tape
+- Options & dealer flow: get_gex / get_positioning / get_cot work for BTC/ETH/SOL AND Gold (sym 'gold'/'xauusd' → GLD options/COMEX). get_liquidations / get_big_tape are crypto-only (BTC/ETH/SOL).
+- Gold/XAUUSD market structure: price-action layer (swings/levels/regime) = chart_get_market_structure; options GEX layer (Call/Put walls, max pain, gamma flip, HVL, σ-bands, strike profile) = get_gex sym 'gold'.
 - Watchlist (local file): watchlist_get / watchlist_add / watchlist_remove / watchlist_signals
 - Live price chart (CDP, needs Chrome --remote-debugging-port=9333 + chart open): chart_status / chart_get_view / chart_get_indicators / chart_get_market_structure / chart_get_ohlcv
 

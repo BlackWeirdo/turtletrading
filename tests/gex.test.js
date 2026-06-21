@@ -38,6 +38,38 @@ test('getBigTape("btc") returns trades', async () => {
   assert.ok(Array.isArray(r.trades));
 });
 
+test('getGex("gld") returns the gold options GEX layer', async () => {
+  const r = await gex.getGex({ sym: 'gld' });
+  assert.match(r.sym, /^gld$/i);
+  assert.equal(typeof r.net_gex, 'number');
+  assert.ok('max_pain' in r && 'gamma_flip' in r && 'hvl' in r);
+  assert.ok(Array.isArray(r.levels) && r.levels.length > 0);
+});
+
+test('getGex gold aliases ("gold"/"xau"/"xauusd") resolve to GLD', async () => {
+  for (const sym of ['gold', 'xau', 'xauusd']) {
+    const r = await gex.getGex({ sym });
+    assert.match(r.sym, /^gld$/i, `alias ${sym} must resolve to GLD`);
+  }
+});
+
+test('getCot("gold") returns the COMEX gold COT', async () => {
+  const r = await gex.getCot({ sym: 'gold' });
+  assert.equal(typeof r.cot_index, 'number');
+  assert.match(String(r.market), /GOLD/i);
+});
+
+test('getCot("gold", with_history) returns the weekly series', async () => {
+  const r = await gex.getCot({ sym: 'gold', with_history: true });
+  assert.ok(Array.isArray(r.hist), 'hist must be an array when with_history=true');
+});
+
+test('getPositioning("gold") returns OI for the gold series', async () => {
+  const r = await gex.getPositioning({ sym: 'gold' });
+  assert.equal(r.sym, 'gld');
+  assert.equal(typeof r.oi_usd, 'number');
+});
+
 test('getGex unknown symbol rejects with an HTTP error', async () => {
   // Bad symbol → 404 (or 429 under burst); point is it rejects, not the code.
   await assert.rejects(() => gex.getGex({ sym: 'xxx' }), /HTTP \d{3}/);

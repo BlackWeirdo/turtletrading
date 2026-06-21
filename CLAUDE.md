@@ -18,17 +18,18 @@ Trả lời người dùng bằng **tiếng Việt**. Code/comment/commit bằng
 | Nến FX / Vàng (XAUUSD) | `get_fx_bars` (TF 15m/1h/4h/1d) |
 | Regime đa khung FX/Vàng | `get_fx_mtf` |
 | Tra cứu symbol FX/metal/index/commodity | `get_fx_catalog` |
-| GEX / gamma flip / max pain / ATM IV / expected move (BTC/ETH/SOL) | `get_gex` |
-| Funding / OI / L/S ratio / retail-whale / F&G | `get_positioning` |
-| COT index + spec positioning | `get_cot` |
-| Vùng thanh lý (liquidation zones) | `get_liquidations` |
-| Lệnh lớn (whale big tape) | `get_big_tape` |
+| GEX / gamma flip / max pain / HVL / ATM IV / expected move (BTC/ETH/SOL **+ Vàng** qua `sym:'gold'`/`'xauusd'` = GLD) | `get_gex` |
+| Funding / OI / L/S ratio / retail-whale / F&G (BTC/ETH/SOL + Vàng GLD) | `get_positioning` |
+| COT index + spec positioning (BTC/ETH/SOL + **Vàng COMEX** qua `'gold'`) | `get_cot` |
+| Vùng thanh lý (liquidation zones) — **chỉ crypto** BTC/ETH/SOL | `get_liquidations` |
+| Lệnh lớn (whale big tape) — **chỉ crypto** BTC/ETH/SOL | `get_big_tape` |
 | Watchlist cá nhân (xem/thêm/xóa) | `watchlist_get` / `watchlist_add` / `watchlist_remove` |
 | Quét tín hiệu tất cả mã trong watchlist | `watchlist_signals` |
 | "Indicator tôi đang để trên chart là gì?" / nến đúng trên chart | `chart_status` / `chart_get_view` / `chart_get_indicators` / `chart_get_ohlcv` / `chart_get_market_structure` |
 
 ## Phân biệt quan trọng
 - **Market Structure / GEX** (`get_gex`...) = HTTP công khai, KHÔNG cần browser.
+- **Cấu trúc thị trường VÀNG (XAUUSD)** có 2 lớp: (1) hành động giá (swings/levels/regime) → `chart_get_market_structure` (chart sống) hoặc `get_fx_mtf`; (2) lớp GEX option (Call/Put walls, max pain, gamma flip, HVL, σ-bands, strike profile) → `get_gex sym:'gold'` (đọc từ option GLD qua HTTP, KHÔNG cần đọc nhãn Pine trên chart).
 - **Indicator trên price chart** (`chart_*`) = đọc chart SỐNG qua CDP → **cần Chrome mở `--remote-debugging-port=9333`** và đang ở `app.turtletrading.vn/chart`. Nếu không, `chart_*` báo lỗi rõ + hint, mọi tool HTTP khác vẫn chạy bình thường.
 
 ## Quy tắc
