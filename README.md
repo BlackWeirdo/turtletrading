@@ -36,9 +36,20 @@ Plus `health`.
 ## Connect to Claude
 Edit the example for your client (use an **absolute** path to `src/server.js`):
 - Claude Desktop → merge `config-examples/claude_desktop_config.json` into your `claude_desktop_config.json`.
-- Claude Code → merge `config-examples/mcp.json`.
+- Claude Code → merge `config-examples/mcp.json` (or drop a project-scope `.mcp.json`).
 
-Back up your existing config before merging. Restart the client afterwards.
+Back up your existing config before merging. **Fully quit and reopen** the client
+afterwards (closing the window is not enough — Claude Desktop keeps running in the
+system tray and only re-reads the config on a real restart).
+
+### ⚠️ Claude Desktop installed from the Microsoft Store (MSIX)
+The Store build does NOT read `%APPDATA%\Roaming\Claude\claude_desktop_config.json`.
+Its AppData is virtualized — the file it actually reads is:
+```
+%LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude\claude_desktop_config.json
+```
+(e.g. `...\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\...`). Edit THAT
+file, keep any existing `preferences` block intact, then fully restart.
 
 ## Enabling the live-chart tools (optional)
 1. Launch a debug Chrome and open the chart:
@@ -64,6 +75,12 @@ Without this, `chart_*` return `{ connected:false, hint:... }` and everything el
 
 ## Notes / limits
 - Endpoints are unofficial pre-built files — they may change; tools parse defensively.
-- `chart_*` rely on minified engine keys (`__chart2`); the full `inds[]` schema is not
-  yet mapped, so `chart_get_indicators` returns generic scalars + `schema_unknown:true`.
+- `chart_get_indicators` / `chart_get_view` return each indicator as `{id,type,hidden,params,value}`.
+  `value` is read from `inds[]._lastRes` in the engine:
+  - Regime indicators (trenddet / adxregime / supertrendreg / squeeze / volregime / bullbear / structure / volumereg) → `{kind:"regime", value:"<raw state>"}` e.g. `up`, `weak`, `bull`, `sideways`, `range`, `low`, `downtrend`, `normal` …
+  - Single-line (ema) → `{kind:"line", value:<number>}`
+  - Multi-line (macd / rsi) → `{kind:"multi", values:{…}}`
+  - SMC → `{kind:"multi", values:{fvg, ob, pdz, struct, liq, swings}}`
+  Values are raw from the engine — not translated or inferred.
+- `chart_get_market_structure`: swings now include real price + full support/resistance levels.
 - FX MTF `rh/rf/rd` returned raw (positive = up, negative = down); exact per-timeframe meaning unconfirmed.

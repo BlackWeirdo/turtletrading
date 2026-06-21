@@ -1,9 +1,12 @@
 import { z } from 'zod';
-import { jsonResult } from './_format.js';
+import { guard } from './_format.js';
 import * as gex from '../core/gex.js';
 
 const NET = { readOnlyHint: true, openWorldHint: true };
 const SYM = z.enum(['btc', 'eth', 'sol']).default('btc');
+
+// Echo the requested symbol back on error so the caller knows which one failed.
+const withSym = (e, a) => ({ sym: a.sym });
 
 export function registerGexTools(server) {
   server.tool(
@@ -17,13 +20,7 @@ export function registerGexTools(server) {
         .describe('omit = scalars + levels; add profile/netdollar for the heavy arrays'),
     },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await gex.getGex(args));
-      } catch (e) {
-        return jsonResult({ sym: args.sym, error: e.message }, true);
-      }
-    }
+    guard(gex.getGex, withSym)
   );
 
   server.tool(
@@ -31,13 +28,7 @@ export function registerGexTools(server) {
     'Dealer/retail positioning: OI (+24h change), funding rates per exchange, long/short ratio, retail vs whale tiers, fear & greed.',
     { sym: SYM },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await gex.getPositioning(args));
-      } catch (e) {
-        return jsonResult({ sym: args.sym, error: e.message }, true);
-      }
-    }
+    guard(gex.getPositioning, withSym)
   );
 
   server.tool(
@@ -45,13 +36,7 @@ export function registerGexTools(server) {
     'COT report: cot_index (0-100), speculative net/long/short positioning, open interest. Set with_history for the weekly series.',
     { sym: SYM, with_history: z.boolean().default(false) },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await gex.getCot(args));
-      } catch (e) {
-        return jsonResult({ sym: args.sym, error: e.message }, true);
-      }
-    }
+    guard(gex.getCot, withSym)
   );
 
   server.tool(
@@ -59,13 +44,7 @@ export function registerGexTools(server) {
     'Liquidation zones: aggregated long/short liquidation bars (15min interval, ~14 days). Returns most recent `limit` bars.',
     { sym: SYM, limit: z.number().int().min(1).max(1344).default(96) },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await gex.getLiquidations(args));
-      } catch (e) {
-        return jsonResult({ sym: args.sym, error: e.message }, true);
-      }
-    }
+    guard(gex.getLiquidations, withSym)
   );
 
   server.tool(
@@ -77,12 +56,6 @@ export function registerGexTools(server) {
       limit: z.number().int().min(1).max(200).default(50),
     },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await gex.getBigTape(args));
-      } catch (e) {
-        return jsonResult({ sym: args.sym, error: e.message }, true);
-      }
-    }
+    guard(gex.getBigTape, withSym)
   );
 }

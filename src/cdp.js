@@ -128,11 +128,11 @@ export async function connect(port = DEFAULT_PORT) {
 
   // Existing contexts are reported asynchronously after enable; give them a tick.
   await new Promise((r) => setTimeout(r, 400));
-  chartContextId = pickChartContext();
+  chartContextId = await pickChartContext();
   if (chartContextId == null) {
     // One more nudge in case the iframe context arrived late.
     await new Promise((r) => setTimeout(r, 600));
-    chartContextId = pickChartContext();
+    chartContextId = await pickChartContext();
   }
   if (chartContextId == null) {
     throw new Error(`Chart iframe context (${CHART_ORIGIN}) not found — is the chart loaded?`);
@@ -140,11 +140,34 @@ export async function connect(port = DEFAULT_PORT) {
   return { port };
 }
 
-function pickChartContext() {
+// Select the chart iframe execution context. The page can hold MORE THAN ONE
+// context on CHART_ORIGIN — e.g. the multi-timeframe helper iframe, or a stale
+// context left behind after an in-app (SPA) navigation. Only one actually owns
+// `window.__chart2.active`, so when there are several candidates we probe each
+// and pick the live one (picking the wrong one yields a false "no active
+// chart"). Single-candidate / probe-failure paths fall back cheaply.
+async function pickChartContext() {
+  const candidates = [];
   for (const [id, origin] of contexts) {
-    if (origin === CHART_ORIGIN) return id;
+    if (origin === CHART_ORIGIN) candidates.push(id);
   }
-  return null;
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  for (const id of candidates) {
+    try {
+      const r = await send('Runtime.evaluate', {
+        expression: '!!(window.__chart2 && window.__chart2.active)',
+        contextId: id,
+        returnByValue: true,
+      });
+      if (r.result?.value === true) return id;
+    } catch {
+      // Context may have been destroyed mid-probe; try the next candidate.
+    }
+  }
+  // None reported an active chart (chart still loading) — fall back to the first
+  // so callers get a clean has_chart:false rather than a missing-context throw.
+  return candidates[0];
 }
 
 /**

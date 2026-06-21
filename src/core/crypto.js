@@ -1,5 +1,6 @@
 // Core logic for crypto tools. Fetch + parse only.
 import { fetchJSON } from '../http.js';
+import { sanitizeSymbol, toUpperSet, filterBySymbols } from '../symbols.js';
 
 const OVERVIEW_URL = 'https://data.signals.turtletrading.vn/api/overview/crypto-recent.json';
 const BUNDLE_URL = 'https://data.signals.turtletrading.vn/api/bundle.json';
@@ -9,34 +10,10 @@ const TTL_OVERVIEW = 60 * 1000; // 60 s
 const TTL_BUNDLE = 5 * 60 * 1000; // 5 min
 const TTL_KLINES = { '1h': 60 * 1000, '4h': 5 * 60 * 1000, '1d': 30 * 60 * 1000 };
 
-function upperSet(coins) {
-  if (!Array.isArray(coins) || coins.length === 0) return null;
-  return new Set(coins.map((c) => String(c).toUpperCase()));
-}
-
-// Only allow [A-Z0-9] in path segments to avoid building nonsense URLs.
-function safeSym(sym) {
-  return String(sym).toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
 export async function getOverview({ coins } = {}) {
   const json = await fetchJSON(OVERVIEW_URL, TTL_OVERVIEW);
   const all = json.coins ?? [];
-  const want = upperSet(coins);
-
-  let picked;
-  let missing = [];
-  if (want) {
-    const found = new Set();
-    picked = all.filter((c) => {
-      const hit = want.has(String(c.s).toUpperCase());
-      if (hit) found.add(String(c.s).toUpperCase());
-      return hit;
-    });
-    missing = [...want].filter((c) => !found.has(c));
-  } else {
-    picked = all;
-  }
+  const { picked, missing } = filterBySymbols(all, toUpperSet(coins), (c) => c.s);
 
   return {
     updated: json.updated,
@@ -83,7 +60,7 @@ export async function getSignal({ coin }) {
 }
 
 export async function getKlines({ coin, timeframe, limit = 200 }) {
-  const COIN = safeSym(coin);
+  const COIN = sanitizeSymbol(coin);
   const url = `${KLINES_BASE}/${COIN}/${timeframe}-recent.json`;
   const json = await fetchJSON(url, TTL_KLINES[timeframe] ?? 60 * 1000);
   const bars = (json.bars ?? []).slice(-limit);

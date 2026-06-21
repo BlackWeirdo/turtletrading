@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { jsonResult } from './_format.js';
+import { guard } from './_format.js';
 import * as fx from '../core/fx.js';
 
 const NET = { readOnlyHint: true, openWorldHint: true };
@@ -14,16 +14,12 @@ export function registerFxTools(server) {
       limit: z.number().int().min(1).max(1000).default(200),
     },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await fx.getBars(args));
-      } catch (e) {
-        return jsonResult(
-          { symbol: args.symbol, timeframe: args.timeframe, error: 'symbol/timeframe không hỗ trợ', detail: e.message },
-          true
-        );
-      }
-    }
+    guard(fx.getBars, (e, a) => ({
+      symbol: a.symbol,
+      timeframe: a.timeframe,
+      error: 'symbol/timeframe không hỗ trợ',
+      detail: e.message,
+    }))
   );
 
   server.tool(
@@ -31,13 +27,7 @@ export function registerFxTools(server) {
     'Multi-timeframe regime (rh/rf/rd) for an FX/metal symbol via OANDA feed.',
     { symbol: z.string().min(1).describe("e.g. 'XAUUSD'") },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await fx.getMtf(args));
-      } catch (e) {
-        return jsonResult({ symbol: args.symbol, error: e.message }, true);
-      }
-    }
+    guard(fx.getMtf, (e, a) => ({ symbol: a.symbol }))
   );
 
   server.tool(
@@ -48,12 +38,6 @@ export function registerFxTools(server) {
       query: z.string().optional().describe("match symbol/name, e.g. 'gold'"),
     },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await fx.getCatalog(args));
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
-      }
-    }
+    guard(fx.getCatalog)
   );
 }

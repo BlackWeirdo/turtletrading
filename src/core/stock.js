@@ -1,5 +1,6 @@
 // Core logic for VN stock tools. Fetch + parse only — no MCP/zod here.
 import { fetchJSON } from '../http.js';
+import { toUpperSet, filterBySymbols } from '../symbols.js';
 
 const SUMMARY_URL = 'https://data.signals.turtletrading.vn/api/stock/stocks-summary.json';
 const LIVE_URL = 'https://data.signals.turtletrading.vn/api/stock/live.json';
@@ -8,12 +9,6 @@ const FUND_URL = 'https://phantichcoban.turtletrading.vn/data/stocks.json';
 const TTL_SUMMARY = 5 * 60 * 1000; // 5 min
 const TTL_LIVE = 45 * 1000; // 45 s
 const TTL_FUND = 60 * 60 * 1000; // 1 h (daily data)
-
-// Build an uppercase lookup Set, or null if no filter requested.
-function upperSet(symbols) {
-  if (!Array.isArray(symbols) || symbols.length === 0) return null;
-  return new Set(symbols.map((s) => String(s).toUpperCase()));
-}
 
 // Keep only the fields worth spending tokens on (drops heavy `sp` price arrays).
 function slimSignal(x) {
@@ -42,21 +37,7 @@ function slimSignal(x) {
 export async function getSignals({ symbols } = {}) {
   const json = await fetchJSON(SUMMARY_URL, TTL_SUMMARY);
   const all = json.stocks ?? [];
-  const want = upperSet(symbols);
-
-  let picked;
-  let missing = [];
-  if (want) {
-    const found = new Set();
-    picked = all.filter((s) => {
-      const hit = want.has(String(s.symbol).toUpperCase());
-      if (hit) found.add(String(s.symbol).toUpperCase());
-      return hit;
-    });
-    missing = [...want].filter((s) => !found.has(s));
-  } else {
-    picked = all;
-  }
+  const { picked, missing } = filterBySymbols(all, toUpperSet(symbols), (s) => s.symbol);
 
   return {
     generated_at: json.generated_at,
@@ -69,7 +50,7 @@ export async function getSignals({ symbols } = {}) {
 export async function getLive({ symbols } = {}) {
   const json = await fetchJSON(LIVE_URL, TTL_LIVE);
   const prices = json.prices ?? {};
-  const want = upperSet(symbols);
+  const want = toUpperSet(symbols);
 
   const keys = want ? [...want] : Object.keys(prices);
   const quotes = [];

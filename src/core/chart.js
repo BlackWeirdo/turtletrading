@@ -4,13 +4,23 @@
 // engine objects (series/chart) have circular refs and must never be returned.
 //
 // ⚠️ All selectors are minified internal keys (__chart2 / .active / .inds /
-// ._data / ._ntData / ._mtfDir). They WILL break when the site updates.
+// ._data / ._lastRes / ._mtfDir). They WILL break when the site updates.
 // They are intentionally centralized here so patching is a one-file job.
 //
-// ⚠️ The exact schema of a single `inds[]` entry (param keys, where the
-// computed series values live) is NOT yet known — the recon profile had no
-// indicators. Until discovery on a real chart with indicators added, we
-// extract every scalar own-property generically and flag schema_unknown.
+// Indicator schema (discovered on a real chart, 2026-06-21):
+//   inds[] entry = { id, type, params:{...}, hidden, _ref, _lastRes }
+//   The COMPUTED VALUES live in `_lastRes`, whose shape depends on `type`:
+//     - regime indicators (trenddet/adxregime/supertrendreg/squeeze/volregime/
+//       bullbear/structure/volumereg): { last:"<state>", states:[], regimeSegments:[] }
+//       → the current value is `_lastRes.last` (e.g. "up"/"weak"/"bull"/"sideways")
+//     - line indicators (ema/sma/...): number[] → current = last finite number
+//     - multi-line (macd:{macd,signal,histogram}, rsi:{rsi,ema,wma}): object of number[]
+//     - smc: { fvg,ob,pdz,struct,liq,swings } arrays of zone/swing objects
+//     - volprofile: { vp:1 } (overlay marker only)
+//   `__indValue` below normalises all of these generically (no per-type table)
+//   so new/unknown types still surface a useful value instead of nothing.
+//   Values are returned RAW (no translation/relabelling) — the caller must not
+//   invent semantics the engine did not provide.
 import { evalChart } from '../cdp.js';
 
 // JS helper source injected into each evaluated expression. Pulls only
@@ -18,9 +28,50 @@ import { evalChart } from '../cdp.js';
 // circular refs.
 const SCALARS_FN = `function __scalars(o){var r={};if(!o||typeof o!=='object')return r;for(var k in o){try{var v=o[k];var t=typeof v;if(v===null||t==='string'||t==='number'||t==='boolean')r[k]=v;}catch(e){}}return r;}`;
 
-// Map an indicator entry to {type, params, schema_unknown}. Generic until the
-// real inds[] schema is discovered.
-const INDS_MAP_FN = `function __indMap(i){var type=i&&(i.type||i.name||i.id||i.kind)||null;var p=__scalars(i);delete p.type;delete p.name;delete p.id;delete p.kind;return {type:type,params:p,schema_unknown:true};}`;
+// Value extractor: normalise an indicator's `_lastRes` into a compact, raw
+// summary. Handles every observed shape generically (see header comment).
+const VAL_FN = `
+function __lastNum(a){if(!Array.isArray(a))return null;for(var i=a.length-1;i>=0;i--){var v=a[i];if(typeof v==='number'&&isFinite(v))return v;}return null;}
+function __isNumArr(a){return Array.isArray(a)&&a.length>0&&typeof a[a.length-1]==='number';}
+function __indValue(lr){
+  if(lr===null||lr===undefined)return null;
+  var t=typeof lr;
+  if(t==='number'||t==='string'||t==='boolean')return {kind:'scalar',value:lr};
+  if(Array.isArray(lr)){
+    if(__isNumArr(lr))return {kind:'line',value:__lastNum(lr),points:lr.length};
+    return {kind:'series',count:lr.length,last:(lr.length?lr[lr.length-1]:null)};
+  }
+  // regime indicators carry a headline string/number in .last
+  if((typeof lr.last==='string'||typeof lr.last==='number')){
+    var seg=Array.isArray(lr.regimeSegments)?lr.regimeSegments.length:undefined;
+    var o={kind:'regime',value:lr.last};
+    if(seg!==undefined)o.segments=seg;
+    return o;
+  }
+  // multi-series / structured object: summarise each named field
+  var r={kind:'multi',values:{}};
+  for(var k in lr){
+    try{
+      var v=lr[k];
+      if(__isNumArr(v))r.values[k]=__lastNum(v);
+      else if(Array.isArray(v))r.values[k]={count:v.length,last:(v.length?v[v.length-1]:null)};
+      else if(v===null||typeof v!=='object')r.values[k]=v;
+    }catch(e){}
+  }
+  return r;
+}`;
+
+// Map an indicator entry to {id,type,hidden,params,value}. `value` is the
+// real computed result from `_lastRes` (null if the engine has not computed
+// it yet). `params` come from the entry's own `params` object.
+const INDS_MAP_FN = `function __indMap(i,withValues){var m={id:(i&&i.id!=null?i.id:null),type:(i&&(i.type||i.name||i.kind))||null,hidden:!!(i&&i.hidden),params:__scalars(i&&i.params)};if(withValues)m.value=__indValue(i&&i._lastRes);return m;}`;
+
+// Bar accessor: chart bars in `_data` are objects {time,open,high,low,close,
+// vol/volume}; older/array shapes [t,o,h,l,c,v] are handled too.
+const BAR_FN = `
+function __bt(b){return Array.isArray(b)?b[0]:(b.time!=null?b.time:b.t);}
+function __bh(b){return Array.isArray(b)?b[2]:(b.high!=null?b.high:b.h);}
+function __bl(b){return Array.isArray(b)?b[3]:(b.low!=null?b.low:b.l);}`;
 
 export async function status() {
   const expr = `(function(){
@@ -37,10 +88,10 @@ export async function status() {
 
 export async function getView() {
   const expr = `(function(){
-    ${SCALARS_FN}${INDS_MAP_FN}
+    ${SCALARS_FN}${VAL_FN}${INDS_MAP_FN}
     var c = window.__chart2 && window.__chart2.active;
     if (!c) return { has_chart:false };
-    var inds = (c.inds||[]).map(__indMap);
+    var inds = (c.inds||[]).map(function(i){return __indMap(i,true);});
     var ov = c.ov || {};
     var overlays = Object.keys(ov);
     return {
@@ -60,23 +111,10 @@ export async function getView() {
 
 export async function getIndicators({ with_values = true } = {}) {
   const expr = `(function(){
-    ${SCALARS_FN}${INDS_MAP_FN}
+    ${SCALARS_FN}${VAL_FN}${INDS_MAP_FN}
     var c = window.__chart2 && window.__chart2.active;
     if (!c) return { has_chart:false };
-    var inds = (c.inds||[]).map(function(i){
-      var m = __indMap(i);
-      if (${with_values}) {
-        // Best-effort: expose any short numeric array under common keys.
-        try {
-          var keys=['values','_values','data','_data','series'];
-          for (var j=0;j<keys.length;j++){
-            var a=i[keys[j]];
-            if (Array.isArray(a) && a.length){ m.last_value = a[a.length-1]; break; }
-          }
-        } catch(e){}
-      }
-      return m;
-    });
+    var inds = (c.inds||[]).map(function(i){return __indMap(i,${!!with_values});});
     return { has_chart:true, count:inds.length, indicators:inds };
   })()`;
   const r = await evalChart(expr);
@@ -87,7 +125,7 @@ export async function getIndicators({ with_values = true } = {}) {
 
 export async function getMarketStructure({ swings = true } = {}) {
   const expr = `(function(){
-    ${SCALARS_FN}
+    ${SCALARS_FN}${BAR_FN}
     var c = window.__chart2 && window.__chart2.active;
     if (!c) return { has_chart:false };
     var data = c._data || [];
@@ -96,18 +134,20 @@ export async function getMarketStructure({ swings = true } = {}) {
     // Multi-timeframe regime direction from the controller, if present
     var ctrl = window.__chart2 || {};
     var mtf = ctrl._mtfDir || null;
-    // Swing highs/lows via simple fractal (n=2) on close-ish data [t,o,h,l,c,v]
+    // Swing highs/lows via simple fractal (n=2). Bars are objects
+    // {time,open,high,low,close,vol}; __bh/__bl/__bt read either shape.
     var swings = [];
-    if (${swings} && data.length > 5) {
+    if (${!!swings} && data.length > 5) {
       var n=2;
       for (var i=n;i<data.length-n;i++){
-        var hi=data[i][2], lo=data[i][3], isH=true, isL=true;
+        var hi=__bh(data[i]), lo=__bl(data[i]), isH=true, isL=true;
+        if (hi==null||lo==null) continue;
         for (var k=1;k<=n;k++){
-          if (data[i-k][2]>=hi||data[i+k][2]>=hi) isH=false;
-          if (data[i-k][3]<=lo||data[i+k][3]<=lo) isL=false;
+          if (__bh(data[i-k])>=hi||__bh(data[i+k])>=hi) isH=false;
+          if (__bl(data[i-k])<=lo||__bl(data[i+k])<=lo) isL=false;
         }
-        if (isH) swings.push({ t:data[i][0], type:'high', price:hi });
-        else if (isL) swings.push({ t:data[i][0], type:'low', price:lo });
+        if (isH) swings.push({ t:__bt(data[i]), type:'high', price:hi });
+        else if (isL) swings.push({ t:__bt(data[i]), type:'low', price:lo });
       }
     }
     var recent = swings.slice(-20);

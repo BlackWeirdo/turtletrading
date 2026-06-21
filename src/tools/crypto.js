@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { jsonResult } from './_format.js';
+import { guard } from './_format.js';
 import * as crypto from '../core/crypto.js';
 
 const NET = { readOnlyHint: true, openWorldHint: true };
@@ -10,13 +10,7 @@ export function registerCryptoTools(server) {
     'Crypto market overview (price/market_cap/volume + 1h/24h/7d/30d/365d changes). Pass coins to filter, omit for all.',
     { coins: z.array(z.string()).optional().describe("e.g. ['BTC','ETH']; omit = all coins") },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await crypto.getOverview(args));
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
-      }
-    }
+    guard(crypto.getOverview)
   );
 
   server.tool(
@@ -24,13 +18,7 @@ export function registerCryptoTools(server) {
     'Turtle entry/exit signal timeline for one coin + whether a position is currently open.',
     { coin: z.string().min(1).describe("e.g. 'BTC'") },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await crypto.getSignal(args));
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
-      }
-    }
+    guard(crypto.getSignal)
   );
 
   server.tool(
@@ -42,16 +30,12 @@ export function registerCryptoTools(server) {
       limit: z.number().int().min(1).max(1000).default(200),
     },
     NET,
-    async (args) => {
-      try {
-        return jsonResult(await crypto.getKlines(args));
-      } catch (e) {
-        // HTTP 404 → unsupported coin/timeframe.
-        return jsonResult(
-          { coin: args.coin, timeframe: args.timeframe, error: 'coin/timeframe không hỗ trợ', detail: e.message },
-          true
-        );
-      }
-    }
+    // HTTP 404 → unsupported coin/timeframe.
+    guard(crypto.getKlines, (e, a) => ({
+      coin: a.coin,
+      timeframe: a.timeframe,
+      error: 'coin/timeframe không hỗ trợ',
+      detail: e.message,
+    }))
   );
 }

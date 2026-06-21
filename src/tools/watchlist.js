@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { jsonResult } from './_format.js';
+import { guard } from './_format.js';
 import * as watchlist from '../core/watchlist.js';
 import * as stock from '../core/stock.js';
 import * as crypto from '../core/crypto.js';
@@ -11,13 +11,7 @@ export function registerWatchlistTools(server) {
     'List all saved watchlist items (local file). Each item has symbol/type/added_at.',
     {},
     { readOnlyHint: true },
-    async () => {
-      try {
-        return jsonResult(await watchlist.get());
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
-      }
-    }
+    guard(watchlist.get)
   );
 
   server.tool(
@@ -28,13 +22,7 @@ export function registerWatchlistTools(server) {
       type: z.enum(['stock', 'crypto', 'fx']).default('stock'),
     },
     { readOnlyHint: false },
-    async (args) => {
-      try {
-        return jsonResult(await watchlist.add(args));
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
-      }
-    }
+    guard(watchlist.add)
   );
 
   server.tool(
@@ -42,13 +30,7 @@ export function registerWatchlistTools(server) {
     'Remove a symbol from the local watchlist (all types matching the symbol).',
     { symbol: z.string().min(1) },
     { readOnlyHint: false },
-    async (args) => {
-      try {
-        return jsonResult(await watchlist.remove(args));
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
-      }
-    }
+    guard(watchlist.remove)
   );
 
   server.tool(
@@ -59,40 +41,36 @@ export function registerWatchlistTools(server) {
       include_fx: z.boolean().default(true),
     },
     { readOnlyHint: true, openWorldHint: true },
-    async ({ include_crypto = true, include_fx = true }) => {
-      try {
-        const { items } = await watchlist.get();
-        const stockSyms = items.filter((i) => i.type === 'stock').map((i) => i.symbol);
-        const cryptoSyms = items.filter((i) => i.type === 'crypto').map((i) => i.symbol);
-        const fxSyms = items.filter((i) => i.type === 'fx').map((i) => i.symbol);
+    guard(async ({ include_crypto = true, include_fx = true }) => {
+      const { items } = await watchlist.get();
+      const symbolsOfType = (type) => items.filter((i) => i.type === type).map((i) => i.symbol);
+      const stockSyms = symbolsOfType('stock');
 
-        const out = {};
-        out.stocks = stockSyms.length ? await stock.getSignals({ symbols: stockSyms }) : { count: 0, stocks: [] };
+      const out = {};
+      out.stocks = stockSyms.length ? await stock.getSignals({ symbols: stockSyms }) : { count: 0, stocks: [] };
 
-        if (include_crypto) {
-          out.crypto = [];
-          for (const coin of cryptoSyms) {
-            try {
-              out.crypto.push(await crypto.getSignal({ coin }));
-            } catch (e) {
-              out.crypto.push({ coin, error: e.message });
-            }
+      // Per-item try/catch: one bad symbol must not sink the whole scan.
+      if (include_crypto) {
+        out.crypto = [];
+        for (const coin of symbolsOfType('crypto')) {
+          try {
+            out.crypto.push(await crypto.getSignal({ coin }));
+          } catch (e) {
+            out.crypto.push({ coin, error: e.message });
           }
         }
-        if (include_fx) {
-          out.fx = [];
-          for (const symbol of fxSyms) {
-            try {
-              out.fx.push(await fx.getMtf({ symbol }));
-            } catch (e) {
-              out.fx.push({ symbol, error: e.message });
-            }
-          }
-        }
-        return jsonResult(out);
-      } catch (e) {
-        return jsonResult({ error: e.message }, true);
       }
-    }
+      if (include_fx) {
+        out.fx = [];
+        for (const symbol of symbolsOfType('fx')) {
+          try {
+            out.fx.push(await fx.getMtf({ symbol }));
+          } catch (e) {
+            out.fx.push({ symbol, error: e.message });
+          }
+        }
+      }
+      return out;
+    })
   );
 }

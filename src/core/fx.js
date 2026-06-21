@@ -2,6 +2,7 @@
 // NOTE: real FX candles live on data.signals.../api/fxbars/ — NOT
 // chart.../api/klines/oa (that route returns an HTML SPA shell, not data).
 import { fetchJSON } from '../http.js';
+import { sanitizeSymbol } from '../symbols.js';
 
 const FXBARS_BASE = 'https://data.signals.turtletrading.vn/api/fxbars';
 const MTF_BASE = 'https://data.signals.turtletrading.vn/mtf';
@@ -11,12 +12,8 @@ const TTL_FXBARS = { '15m': 60 * 1000, '1h': 60 * 1000, '4h': 5 * 60 * 1000, '1d
 const TTL_MTF = 60 * 1000; // 60 s
 const TTL_CATALOG = 24 * 60 * 60 * 1000; // 24 h (near-static)
 
-function safeSym(sym) {
-  return String(sym).toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
 export async function getBars({ symbol, timeframe, limit = 200 }) {
-  const SYM = safeSym(symbol);
+  const SYM = sanitizeSymbol(symbol);
   const url = `${FXBARS_BASE}/${SYM}/${timeframe}-recent.json`;
   const json = await fetchJSON(url, TTL_FXBARS[timeframe] ?? 60 * 1000);
   const bars = (json.bars ?? []).slice(-limit);
@@ -31,7 +28,7 @@ export async function getBars({ symbol, timeframe, limit = 200 }) {
 }
 
 export async function getMtf({ symbol }) {
-  const SYM = safeSym(symbol);
+  const SYM = sanitizeSymbol(symbol);
   const url = `${MTF_BASE}/fx:${SYM}`;
   const json = await fetchJSON(url, TTL_MTF);
   const coins = json.coins ?? {};

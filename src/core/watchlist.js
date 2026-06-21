@@ -3,6 +3,7 @@
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { sanitizeSymbol } from '../symbols.js';
 
 const FILE = fileURLToPath(new URL('../../data/watchlist.json', import.meta.url));
 const VALID_TYPES = ['stock', 'crypto', 'fx'];
@@ -36,7 +37,7 @@ export async function get() {
 
 export async function add({ symbol, type = 'stock' }) {
   if (!VALID_TYPES.includes(type)) throw new Error(`invalid type '${type}', expected one of ${VALID_TYPES.join('/')}`);
-  const SYM = String(symbol).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const SYM = sanitizeSymbol(symbol);
   const data = await loadFile();
   const exists = data.items.some((i) => i.symbol === SYM && i.type === type);
   if (exists) return { added: false, reason: 'exists', count: data.items.length };
@@ -47,7 +48,7 @@ export async function add({ symbol, type = 'stock' }) {
 }
 
 export async function remove({ symbol }) {
-  const SYM = String(symbol).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const SYM = sanitizeSymbol(symbol);
   const data = await loadFile();
   const before = data.items.length;
   const kept = data.items.filter((i) => i.symbol !== SYM);

@@ -1,6 +1,7 @@
 // Core logic for Market Structure / GEX tools (options & dealer flow).
 // All HTTP (Approach B) — NO CDP. Symbols btc/eth/sol (lowercase in URL).
 import { fetchJSON } from '../http.js';
+import { lowerSymbol } from '../symbols.js';
 
 const BASE = 'https://data.signals.turtletrading.vn/api';
 
@@ -10,12 +11,8 @@ const TTL_COT = 6 * 60 * 60 * 1000; // 6 h (weekly data)
 const TTL_LIQ = 60 * 1000; // 60 s
 const TTL_TAPE = 30 * 1000; // 30 s
 
-function lower(sym) {
-  return String(sym).toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 export async function getGex({ sym = 'btc', sections } = {}) {
-  const s = lower(sym);
+  const s = lowerSymbol(sym);
   const json = await fetchJSON(`${BASE}/gex/${s}/today.json`, TTL_GEX);
   const out = {
     sym: json.sym ?? s,
@@ -57,7 +54,7 @@ export async function getGex({ sym = 'btc', sections } = {}) {
 }
 
 export async function getPositioning({ sym = 'btc' } = {}) {
-  const s = lower(sym);
+  const s = lowerSymbol(sym);
   const json = await fetchJSON(`${BASE}/cga/${s}/pos.json`, TTL_POS);
   return {
     sym: s,
@@ -73,7 +70,7 @@ export async function getPositioning({ sym = 'btc' } = {}) {
 }
 
 export async function getCot({ sym = 'btc', with_history = false } = {}) {
-  const s = lower(sym);
+  const s = lowerSymbol(sym);
   const json = await fetchJSON(`${BASE}/cot/${s}.json`, TTL_COT);
   const out = {
     sym: json.sym ?? s,
@@ -94,14 +91,14 @@ export async function getCot({ sym = 'btc', with_history = false } = {}) {
 }
 
 export async function getLiquidations({ sym = 'btc', limit = 96 } = {}) {
-  const s = lower(sym);
+  const s = lowerSymbol(sym);
   const json = await fetchJSON(`${BASE}/cga/${s}/liqagg.json`, TTL_LIQ);
   const bars = (json.bars ?? []).slice(-limit);
   return { sym: s, interval: json.interval, days: json.days, count: bars.length, bars };
 }
 
 export async function getBigTape({ sym = 'btc', min_usd = 5_000_000, limit = 50 } = {}) {
-  const s = lower(sym);
+  const s = lowerSymbol(sym);
   const json = await fetchJSON(`${BASE}/whale/${s}/bigtape_recent.json`, TTL_TAPE);
   const all = json.trades ?? [];
   const filtered = all.filter((t) => Number(t.usd) >= min_usd).slice(-limit);

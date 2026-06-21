@@ -37,7 +37,12 @@ Trả lời người dùng bằng **tiếng Việt**. Code/comment/commit bằng
 - Endpoint không chính thức (file build sẵn) → có thể đổi; tool parse phòng thủ, lỗi báo rõ thay vì crash.
 - `chart_*` dùng key engine nội bộ minified (`__chart2`) → dễ vỡ khi site update; selector gom hết trong `src/core/chart.js` + `src/cdp.js`.
 - `rh/rf/rd` (FX MTF regime): trả raw + note, dương=tăng/âm=giảm; ngữ nghĩa từng khung chưa xác nhận tuyệt đối.
-- Schema `inds[]` của chart chưa map đầy đủ → `chart_get_indicators` trả `schema_unknown:true` + rút field scalar (không đoán bừa).
+- `chart_get_indicators` / `chart_get_view` đã đọc được giá trị thật từ `inds[]._lastRes`. Mỗi indicator trả về `{id,type,hidden,params,value}` với `value` phân loại theo kind:
+  - `regime` (trenddet/adxregime/supertrendreg/squeeze/volregime/bullbear/structure/volumereg) → `{kind:"regime", value:"<state thô>"}` (up/weak/bull/sideways/range/low/downtrend/normal …)
+  - line (ema) → `{kind:"line", value:<số>}`
+  - multi-line (macd/rsi) → `{kind:"multi", values:{…}}`
+  - smc → `{kind:"multi", values:{fvg,ob,pdz,struct,liq,swings}}`
+  Giá trị RAW từ engine, không dịch/suy đoán. `chart_get_market_structure` swings nay có price thật + support/resistance đầy đủ.
 
 ## Test
 `npm test` → `node --test`. Test gọi endpoint THẬT + ghi/đọc file watchlist THẬT (KHÔNG mock). Test chart skip nếu không có browser debug.
